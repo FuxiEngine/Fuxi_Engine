@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>伏羲引擎</title>
     <style>
         /* ========================
@@ -15,10 +15,12 @@
             --accent-red: #802a2a;
             --border-brown: #8b6b5d;
             --input-bg: #eaddc5;
-            /* 定义太极鱼的主题色 */
             --taiji-dark: #5d4037;
             --taiji-light: #f7f3e8;
         }
+
+        /* 关键：防止 padding 撑大宽度 */
+        * { box-sizing: border-box; }
 
         body {
             margin: 0; padding: 0;
@@ -27,42 +29,28 @@
             color: var(--text-color);
             display: flex; justify-content: center; align-items: flex-start;
             min-height: 100vh;
-            overflow-x: hidden; /* 隐藏因背景过大可能产生的滚动条 */
+            overflow-x: hidden; 
             overflow-y: auto;
         }
 
-       /* * [修改] 动态旋转背景层 
-         * 1. 宽高保持 150vmax
-         * 2. 修改：大小改为 65%，居中显示，且不重复（no-repeat）
-         */
+        /* 动态背景 */
         .bg-rotating {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 150vmax;  
-            height: 150vmax;
+            top: 50%; left: 50%;
+            width: 150vmax; height: 150vmax;
             background-image: url('fuxi.jpg'); 
-            
-            /* --- 修改开始 --- */
-            background-size: 65%;      /* 设置图片大小为容器的 65% */
-            background-repeat: no-repeat; /* 关闭平铺，只显示一张 */
-            background-position: center;  /* 确保图片在容器正中间 */
-            /* --- 修改结束 --- */
-
+            background-size: 65%;
+            background-repeat: no-repeat;
+            background-position: center;
             opacity: 0.6;
             z-index: -2;
-            /* 动画：同时包含居中定位和旋转 */
             animation: rotateBg 120s linear infinite;
         }
-        /* * [修改] 旋转动画
-         * 必须保留 translate(-50%, -50%) 以维持居中
-         */
         @keyframes rotateBg {
             from { transform: translate(-50%, -50%) rotate(0deg); }
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* 遮罩层 */
         .bg-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(247, 243, 232, 0.85); 
@@ -95,6 +83,7 @@
             position: relative;
         }
 
+        /* 表单行 */
         .form-row { display: flex; align-items: center; margin-bottom: 25px; }
         .label { width: 120px; font-size: 1.4rem; font-weight: bold; color: #3e2b1d; flex-shrink: 0; letter-spacing: 1px; font-family: "Kaiti", serif; }
 
@@ -103,11 +92,9 @@
             border-radius: 4px; padding: 8px 15px; font-size: 1.2rem; color: #555; outline: none; font-family: "Kaiti", serif;
             box-shadow: inset 1px 1px 4px rgba(0,0,0,0.05);
         }
-        input[type="text"]::placeholder { color: #aaa; font-style: italic; font-size: 1.1rem; }
 
         .radio-group { display: flex; gap: 30px; align-items: center; font-size: 1.3rem; color: #3e2b1d; font-family: "Kaiti", serif; }
         .radio-item { display: flex; align-items: center; cursor: pointer; }
-        input[type="radio"] { appearance: none; -webkit-appearance: none; margin: 0; }
         
         .radio-mark {
             width: 20px; height: 20px; border: 2px solid #6d4c41; border-radius: 50%;
@@ -115,11 +102,12 @@
         }
         input[type="radio"]:checked + .radio-mark::after { content: ""; width: 12px; height: 12px; background-color: var(--accent-red); border-radius: 50%; }
         input[type="radio"]:checked + .radio-mark { border-color: var(--accent-red); }
-
         .hint-red { color: #8b1e1e; font-weight: bold; font-size: 0.95rem; margin-left: 15px; font-family: "Kaiti"; }
 
+        /* 下拉选择区域 */
         .select-col { display: flex; flex-direction: column; gap: 12px; width: 100%; }
         .select-row { display: flex; gap: 15px; }
+        
         select {
             background-color: #dcd2b8; border: 1px solid #a89a88; border-radius: 6px; padding: 6px 10px;
             font-size: 1.1rem; color: #2b1b17; font-family: "Kaiti", serif; outline: none; cursor: pointer;
@@ -136,14 +124,14 @@
             border: 2px solid #5d4037; outline: 1px solid #5d4037; outline-offset: -6px;
             border-radius: 6px; transition: all 0.2s;
         }
-        button[type="submit"]:hover { background-color: #ede6d4; }
         button[type="submit"]:active { transform: translateY(2px); }
 
+        /* 结果展示区 */
         #result-section { display: none; margin-top: 30px; animation: fadeIn 0.5s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .bazi-table { width: 100%; border-collapse: collapse; font-size: 1.2rem; margin-top: 15px; }
-        .bazi-table th, .bazi-table td { border: 1px solid #cbbba0; padding: 10px; text-align: center; }
+        .bazi-table { width: 100%; border-collapse: collapse; font-size: 1.2rem; margin-top: 15px; table-layout: fixed; }
+        .bazi-table th, .bazi-table td { border: 1px solid #cbbba0; padding: 10px; text-align: center; word-break: break-all; }
         .gan-zhi-font { font-size: 1.8rem; font-weight: bold; font-family: "Kaiti"; }
         
         .wx-木 { color: #007d00; }
@@ -157,7 +145,6 @@
             border: 2px dashed #8b6b5d; background: transparent; color: #5d4037;
             cursor: pointer; font-family: "Kaiti"; border-radius: 8px;
         }
-        #ai-btn:hover { background-color: rgba(139, 107, 93, 0.1); }
         
         #ai-result-box {
             display: none; margin-top: 20px; padding: 20px;
@@ -166,62 +153,69 @@
             font-size: 1.1rem; line-height: 1.6; text-align: left;
         }
 
-        /* 太极鱼 Loading 动画 */
+        /* Loading */
         #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(247, 243, 232, 0.95); z-index: 999;
             display: none; flex-direction: column; justify-content: center; align-items: center;
         }
-
         .taiji-loader {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
+            width: 100px; height: 100px; border-radius: 50%;
             background: linear-gradient(to right, var(--taiji-light) 50%, var(--taiji-dark) 50%);
             border: 2px solid var(--taiji-dark);
-            position: relative;
-            animation: spin 2s linear infinite;
-            box-shadow: 0 0 15px rgba(93, 64, 55, 0.3);
+            position: relative; animation: spin 2s linear infinite;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
-
         .taiji-loader::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 50px;
-            background: var(--taiji-light);
-            border-radius: 50%;
+            content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 50px; height: 50px; background: var(--taiji-light); border-radius: 50%;
             background-image: radial-gradient(circle, var(--taiji-dark) 25%, transparent 25%);
         }
-
         .taiji-loader::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 50px;
-            background: var(--taiji-dark);
-            border-radius: 50%;
+            content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 50px; height: 50px; background: var(--taiji-dark); border-radius: 50%;
             background-image: radial-gradient(circle, var(--taiji-light) 25%, transparent 25%);
         }
 
+        /* ========================
+           📱 移动端适配核心代码
+           ======================== */
         @media (max-width: 600px) {
-            h1 { font-size: 2.8rem; }
-            .paper-card { padding: 30px 20px; }
-            .form-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-            .label { margin-bottom: 5px; }
-            .select-row { width: 100%; }
-            select { flex: 1; }
-            .hint-red { display: block; margin-left: 0; margin-top: 5px; }
-            /* 移动端同样保持铺满 */
-            .bg-rotating { width: 150vh; height: 150vh; } 
+            .container { padding: 15px; }
+            h1 { font-size: 2.5rem; margin: 15px 0; }
+            
+            .paper-card { padding: 25px 15px; }
+
+            /* 表单改为上下结构 */
+            .form-row { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 20px; }
+            .label { width: 100%; text-align: left; margin-bottom: 5px; font-size: 1.2rem; }
+            
+            /* 输入框和选择框全宽，易点击 */
+            input[type="text"] { height: 45px; font-size: 1.1rem; }
+            select { height: 45px; font-size: 1rem; }
+
+            /* 日期行：填满宽度，自动分配空间 */
+            .select-col { width: 100%; }
+            .select-row { width: 100%; justify-content: space-between; gap: 8px; }
+            
+            /* 去掉固定宽度，让 Flex 自动分配 */
+            .sel-year, .sel-md, .sel-time { width: auto; flex: 1; }
+
+            .radio-group { font-size: 1.1rem; gap: 20px; }
+
+            /* 按钮全宽 */
+            button[type="submit"] { width: 100%; height: 55px; font-size: 1.8rem; }
+            
+            /* 表格适配：缩小字体和边距，防止撑破 */
+            .bazi-table { font-size: 0.9rem; margin-top: 10px; }
+            .bazi-table th, .bazi-table td { padding: 5px 2px; }
+            .gan-zhi-font { font-size: 1.4rem; } /* 缩小天干地支大字 */
+
+            /* AI 结果字号微调 */
+            #ai-result-box { padding: 15px; font-size: 1rem; }
+            
+            /* 背景适配 */
+            .bg-rotating { width: 100vmax; height: 100vmax; background-size: 80%; }
         }
     </style>
 </head>
@@ -251,8 +245,8 @@
                 </div>
             </div>
 
-            <div class="form-row" style="align-items: flex-start;">
-                <label class="label" style="margin-top: 8px;">出生时间：</label>
+            <div class="form-row">
+                <label class="label">出生时间：</label>
                 <div class="select-col">
                     <div class="select-row">
                         <select name="year" id="yearSel" class="sel-year"></select>
@@ -268,7 +262,7 @@
 
             <div class="form-row">
                 <label class="label">命主性别：</label>
-                <div class="radio-group" style="flex-wrap: wrap;">
+                <div class="radio-group">
                     <label class="radio-item">
                         <input type="radio" name="gender" value="male" checked>
                         <span class="radio-mark"></span> 男
@@ -277,7 +271,6 @@
                         <input type="radio" name="gender" value="female">
                         <span class="radio-mark"></span> 女
                     </label>
-                    <span class="hint-red"></span>
                 </div>
             </div>
 
@@ -287,12 +280,12 @@
         </form>
 
         <div id="result-section" class="paper-card" style="margin-top: 30px;">
-            <div id="basic-info" style="text-align:center; font-weight:bold; margin-bottom:15px; font-size:1.2rem;"></div>
+            <div id="basic-info" style="text-align:center; font-weight:bold; margin-bottom:15px; font-size:1.1rem;"></div>
 
             <table class="bazi-table">
                 <thead>
                     <tr style="background:#eaddc5;">
-                        <th>四柱</th><th>年柱</th><th>月柱</th><th>日柱</th><th>时柱</th>
+                        <th style="width:15%">四柱</th><th style="width:21%">年柱</th><th style="width:21%">月柱</th><th style="width:21%">日柱</th><th style="width:22%">时柱</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -307,13 +300,13 @@
                     </tr>
                     <tr><td style="background:#f4ece0; font-weight:bold;">藏干</td><td id="cg-y"></td><td id="cg-m"></td><td id="cg-d"></td><td id="cg-t"></td></tr>
                     <tr><td style="background:#f4ece0; font-weight:bold;">纳音</td><td id="ny-y"></td><td id="ny-m"></td><td id="ny-d"></td><td id="ny-t"></td></tr>
-                    <tr><td style="background:#f4ece0; font-weight:bold;">神煞</td><td id="sha-y" style="font-size:0.9rem"></td><td id="sha-m" style="font-size:0.9rem"></td><td id="sha-d" style="font-size:0.9rem"></td><td id="sha-t" style="font-size:0.9rem"></td></tr>
+                    <tr><td style="background:#f4ece0; font-weight:bold;">神煞</td><td id="sha-y" style="font-size:0.8rem"></td><td id="sha-m" style="font-size:0.8rem"></td><td id="sha-d" style="font-size:0.8rem"></td><td id="sha-t" style="font-size:0.8rem"></td></tr>
                 </tbody>
             </table>
 
-            <button id="ai-btn">🔮 启动伏羲引擎</button>
+            <button id="ai-btn">🔮 启动AI引擎</button>
             <div id="ai-result-box">
-                <div style="text-align:center; color:#8b1e1e;" id="ai-loading">伏羲引擎启动中...</div>
+                <div style="text-align:center; color:#8b1e1e;" id="ai-loading">AI 正在以此为契机连接天机...</div>
                 <div id="ai-content"></div>
             </div>
         </div>
@@ -325,10 +318,14 @@
     </div>
 
 <script>
+    // 注意：这里使用的是 Render 的地址，请确认地址无误
+    const API_BASE_URL = "https://fuxi-f11o.onrender.com"; 
+
     const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel');
     const dS=document.getElementById('daySel'), hS=document.getElementById('hourSel'), mnS=document.getElementById('minSel');
     const now = new Date();
     
+    // 初始化日期选择器
     for(let i=now.getFullYear()+1; i>1930; i--) yS.add(new Option(i+'年', i, false, i===2025));
     for(let i=1; i<=12; i++) mS.add(new Option(i+'月', i, false, i===11));
     for(let i=1; i<=31; i++) dS.add(new Option(i+'日', i, false, i===24));
@@ -352,7 +349,8 @@
         const q = `year=${yS.value}&month=${mS.value}&day=${dS.value}&hour=${hS.value}&minute=${mnS.value}&gender=${gender}`;
 
         try {
-            const res = await fetch(`https://fuxi-f11o.onrender.com/bazi?${q}`);
+            // 使用 Render 后端地址
+            const res = await fetch(`${API_BASE_URL}/bazi?${q}`);
             const json = await res.json();
 
             if(json.code === 200) {
@@ -360,6 +358,7 @@
                 setTimeout(() => {
                     renderResult(json.data);
                     overlay.style.display = 'none';
+                    resSec.style.display = 'block';
                     resSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 800);
             } else {
@@ -367,7 +366,7 @@
                 overlay.style.display = 'none';
             }
         } catch (err) {
-            alert("连接失败");
+            alert("连接失败，请检查网络或后端是否启动");
             overlay.style.display = 'none';
         }
     });
@@ -385,7 +384,8 @@
         aiBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         try {
-            const res = await fetch(`https://fuxi-f11o.onrender.com/analyze`, {
+            // 使用 Render 后端地址
+            const res = await fetch(`${API_BASE_URL}/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentBaziData)
@@ -409,17 +409,13 @@
     });
 
     function renderResult(d) {
-        document.getElementById('result-section').style.display = 'block';
-        document.getElementById('basic-info').innerHTML = `${d.basic_info.solar} &nbsp;|&nbsp; ${d.basic_info.lunar} &nbsp;|&nbsp; ${d.basic_info.gender}命`;
+        document.getElementById('basic-info').innerHTML = `${d.basic_info.solar} <br> ${d.basic_info.lunar} | ${d.basic_info.gender}命`;
 
         const mapKey = {'y':'year','m':'month','d':'day','t':'time'};
         
         const wuxingMap = {
-            '甲':'木','乙':'木',
-            '丙':'火','丁':'火',
-            '戊':'土','己':'土',
-            '庚':'金','辛':'金',
-            '壬':'水','癸':'水'
+            '甲':'木','乙':'木', '丙':'火','丁':'火', '戊':'土','己':'土',
+            '庚':'金','辛':'金', '壬':'水','癸':'水'
         };
 
         Object.keys(mapKey).forEach(k => {
@@ -436,7 +432,7 @@
             
             document.getElementById(`cg-${k}`).innerHTML = p.hidden.map(h => {
                 const wxColor = wuxingMap[h.gan] || ''; 
-                return `<span style="display:block;font-size:0.9rem;color:#666">
+                return `<span style="display:block;font-size:0.8rem;color:#666;line-height:1.2">
                     <span class="wx-${wxColor}" style="font-weight:bold">${h.gan}</span>
                     ${h.shishen}
                 </span>`;
