@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>伏羲引擎</title>
+    <style>
+        /* ========================
+           全局设置与字体
+           ======================== */
+        :root {
+            --bg-color: #f7f3e8; 
+            --card-bg: #f9f7f1; 
+            --text-color: #4a342e; 
+            --accent-red: #802a2a;
+            --border-brown: #8b6b5d;
+            --input-bg: #eaddc5;
+            /* 定义太极鱼的主题色 */
+            --taiji-dark: #5d4037;
+            --taiji-light: #f7f3e8;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: "LiSu", "Kaiti", "STKaiti", "KaiTi", "SimSun", serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh;
+            overflow-x: hidden; /* 隐藏因背景过大可能产生的滚动条 */
+            overflow-y: auto;
+        }
+
+       /* * [修改] 动态旋转背景层 
+         * 1. 宽高保持 150vmax
+         * 2. 修改：大小改为 65%，居中显示，且不重复（no-repeat）
+         */
+        .bg-rotating {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 150vmax;  
+            height: 150vmax;
+            background-image: url('fuxi.jpg'); 
+            
+            /* --- 修改开始 --- */
+            background-size: 65%;      /* 设置图片大小为容器的 65% */
+            background-repeat: no-repeat; /* 关闭平铺，只显示一张 */
+            background-position: center;  /* 确保图片在容器正中间 */
+            /* --- 修改结束 --- */
+
+            opacity: 0.6;
+            z-index: -2;
+            /* 动画：同时包含居中定位和旋转 */
+            animation: rotateBg 120s linear infinite;
+        }
+        /* * [修改] 旋转动画
+         * 必须保留 translate(-50%, -50%) 以维持居中
+         */
+        @keyframes rotateBg {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* 遮罩层 */
+        .bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(247, 243, 232, 0.85); 
+            z-index: -1;
+        }
+
+        .container {
+            width: 100%; max-width: 600px;
+            padding: 20px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        h1 {
+            font-size: 3.8rem;
+            margin: 20px 0 30px 0;
+            font-weight: normal;
+            color: #2b1b17;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+            letter-spacing: 5px;
+            font-family: "LiSu", "SimLi", "Kaiti", serif;
+        }
+
+        .paper-card {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(74, 52, 46, 0.15);
+            padding: 40px 50px;
+            text-align: left;
+            position: relative;
+        }
+
+        .form-row { display: flex; align-items: center; margin-bottom: 25px; }
+        .label { width: 120px; font-size: 1.4rem; font-weight: bold; color: #3e2b1d; flex-shrink: 0; letter-spacing: 1px; font-family: "Kaiti", serif; }
+
+        input[type="text"] {
+            flex-grow: 1; background-color: #fcf9f2; border: 1px solid #bdae9a; border-left: 5px solid #8b6b5d;
+            border-radius: 4px; padding: 8px 15px; font-size: 1.2rem; color: #555; outline: none; font-family: "Kaiti", serif;
+            box-shadow: inset 1px 1px 4px rgba(0,0,0,0.05);
+        }
+        input[type="text"]::placeholder { color: #aaa; font-style: italic; font-size: 1.1rem; }
+
+        .radio-group { display: flex; gap: 30px; align-items: center; font-size: 1.3rem; color: #3e2b1d; font-family: "Kaiti", serif; }
+        .radio-item { display: flex; align-items: center; cursor: pointer; }
+        input[type="radio"] { appearance: none; -webkit-appearance: none; margin: 0; }
+        
+        .radio-mark {
+            width: 20px; height: 20px; border: 2px solid #6d4c41; border-radius: 50%;
+            margin-right: 8px; display: flex; justify-content: center; align-items: center; background: transparent;
+        }
+        input[type="radio"]:checked + .radio-mark::after { content: ""; width: 12px; height: 12px; background-color: var(--accent-red); border-radius: 50%; }
+        input[type="radio"]:checked + .radio-mark { border-color: var(--accent-red); }
+
+        .hint-red { color: #8b1e1e; font-weight: bold; font-size: 0.95rem; margin-left: 15px; font-family: "Kaiti"; }
+
+        .select-col { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+        .select-row { display: flex; gap: 15px; }
+        select {
+            background-color: #dcd2b8; border: 1px solid #a89a88; border-radius: 6px; padding: 6px 10px;
+            font-size: 1.1rem; color: #2b1b17; font-family: "Kaiti", serif; outline: none; cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .sel-year { width: 110px; }
+        .sel-md { width: 90px; }
+        .sel-time { width: 130px; }
+
+        .btn-container { margin-top: 25px; display: flex; justify-content: center; }
+        button[type="submit"] {
+            width: 240px; height: 60px; background-color: #f7f5ef; color: #2b1b17;
+            font-family: "Kaiti", serif; font-size: 2.2rem; letter-spacing: 5px; cursor: pointer;
+            border: 2px solid #5d4037; outline: 1px solid #5d4037; outline-offset: -6px;
+            border-radius: 6px; transition: all 0.2s;
+        }
+        button[type="submit"]:hover { background-color: #ede6d4; }
+        button[type="submit"]:active { transform: translateY(2px); }
+
+        #result-section { display: none; margin-top: 30px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .bazi-table { width: 100%; border-collapse: collapse; font-size: 1.2rem; margin-top: 15px; }
+        .bazi-table th, .bazi-table td { border: 1px solid #cbbba0; padding: 10px; text-align: center; }
+        .gan-zhi-font { font-size: 1.8rem; font-weight: bold; font-family: "Kaiti"; }
+        
+        .wx-木 { color: #007d00; }
+        .wx-火 { color: #c00000; }
+        .wx-土 { color: #8b5a00; }
+        .wx-金 { color: #d4a017; text-shadow: 0.5px 0.5px 0 #886600; }
+        .wx-水 { color: #0000cd; }
+
+        #ai-btn {
+            width: 100%; font-size: 1.4rem; margin-top: 20px; padding: 10px;
+            border: 2px dashed #8b6b5d; background: transparent; color: #5d4037;
+            cursor: pointer; font-family: "Kaiti"; border-radius: 8px;
+        }
+        #ai-btn:hover { background-color: rgba(139, 107, 93, 0.1); }
+        
+        #ai-result-box {
+            display: none; margin-top: 20px; padding: 20px;
+            background: rgba(255, 250, 240, 0.8);
+            border: 1px solid #8b6b5d; border-radius: 8px;
+            font-size: 1.1rem; line-height: 1.6; text-align: left;
+        }
+
+        /* 太极鱼 Loading 动画 */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(247, 243, 232, 0.95); z-index: 999;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        .taiji-loader {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(to right, var(--taiji-light) 50%, var(--taiji-dark) 50%);
+            border: 2px solid var(--taiji-dark);
+            position: relative;
+            animation: spin 2s linear infinite;
+            box-shadow: 0 0 15px rgba(93, 64, 55, 0.3);
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .taiji-loader::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background: var(--taiji-light);
+            border-radius: 50%;
+            background-image: radial-gradient(circle, var(--taiji-dark) 25%, transparent 25%);
+        }
+
+        .taiji-loader::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background: var(--taiji-dark);
+            border-radius: 50%;
+            background-image: radial-gradient(circle, var(--taiji-light) 25%, transparent 25%);
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.8rem; }
+            .paper-card { padding: 30px 20px; }
+            .form-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .label { margin-bottom: 5px; }
+            .select-row { width: 100%; }
+            select { flex: 1; }
+            .hint-red { display: block; margin-left: 0; margin-top: 5px; }
+            /* 移动端同样保持铺满 */
+            .bg-rotating { width: 150vh; height: 150vh; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-rotating"></div>
+    <div class="bg-overlay"></div>
+
+    <div class="container">
+        <header>
+            <h1>伏羲引擎</h1>
+        </header>
+
+        <form class="paper-card" id="baziForm">
+            <div class="form-row">
+                <label class="label">命主信息：</label>
+                <input type="text" placeholder="请输入姓名">
+            </div>
+
+            <div class="form-row">
+                <label class="label">起盘方式：</label>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="calendar" checked>
+                        <span class="radio-mark"></span> 公历排盘
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row" style="align-items: flex-start;">
+                <label class="label" style="margin-top: 8px;">出生时间：</label>
+                <div class="select-col">
+                    <div class="select-row">
+                        <select name="year" id="yearSel" class="sel-year"></select>
+                        <select name="month" id="monthSel" class="sel-md"></select>
+                        <select name="day" id="daySel" class="sel-md"></select>
+                    </div>
+                    <div class="select-row">
+                        <select name="hour" id="hourSel" class="sel-time"></select>
+                        <select name="minute" id="minSel" class="sel-time"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label class="label">命主性别：</label>
+                <div class="radio-group" style="flex-wrap: wrap;">
+                    <label class="radio-item">
+                        <input type="radio" name="gender" value="male" checked>
+                        <span class="radio-mark"></span> 男
+                    </label>
+                    <label class="radio-item">
+                        <input type="radio" name="gender" value="female">
+                        <span class="radio-mark"></span> 女
+                    </label>
+                    <span class="hint-red"></span>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button type="submit">排 盘</button>
+            </div>
+        </form>
+
+        <div id="result-section" class="paper-card" style="margin-top: 30px;">
+            <div id="basic-info" style="text-align:center; font-weight:bold; margin-bottom:15px; font-size:1.2rem;"></div>
+
+            <table class="bazi-table">
+                <thead>
+                    <tr style="background:#eaddc5;">
+                        <th>四柱</th><th>年柱</th><th>月柱</th><th>日柱</th><th>时柱</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="background:#f4ece0; font-weight:bold;">十神</td><td id="ss-y"></td><td id="ss-m"></td><td style="color:#0000cd;font-weight:bold">日元</td><td id="ss-t"></td></tr>
+                    <tr>
+                        <td style="background:#f4ece0; font-weight:bold;">天干</td>
+                        <td id="tg-y"></td><td id="tg-m"></td><td id="tg-d"></td><td id="tg-t"></td>
+                    </tr>
+                    <tr>
+                        <td style="background:#f4ece0; font-weight:bold;">地支</td>
+                        <td id="dz-y"></td><td id="dz-m"></td><td id="dz-d"></td><td id="dz-t"></td>
+                    </tr>
+                    <tr><td style="background:#f4ece0; font-weight:bold;">藏干</td><td id="cg-y"></td><td id="cg-m"></td><td id="cg-d"></td><td id="cg-t"></td></tr>
+                    <tr><td style="background:#f4ece0; font-weight:bold;">纳音</td><td id="ny-y"></td><td id="ny-m"></td><td id="ny-d"></td><td id="ny-t"></td></tr>
+                    <tr><td style="background:#f4ece0; font-weight:bold;">神煞</td><td id="sha-y" style="font-size:0.9rem"></td><td id="sha-m" style="font-size:0.9rem"></td><td id="sha-d" style="font-size:0.9rem"></td><td id="sha-t" style="font-size:0.9rem"></td></tr>
+                </tbody>
+            </table>
+
+            <button id="ai-btn">🔮 启动伏羲引擎</button>
+            <div id="ai-result-box">
+                <div style="text-align:center; color:#8b1e1e;" id="ai-loading">伏羲引擎启动中...</div>
+                <div id="ai-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay">
+        <div class="taiji-loader"></div>
+        <div style="margin-top:20px; font-weight:bold; font-size:1.5rem; color:#5d4037; letter-spacing:3px;">伏羲引擎启动中...</div>
+    </div>
+
+<script>
+    const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel');
+    const dS=document.getElementById('daySel'), hS=document.getElementById('hourSel'), mnS=document.getElementById('minSel');
+    const now = new Date();
+    
+    for(let i=now.getFullYear()+1; i>1930; i--) yS.add(new Option(i+'年', i, false, i===2025));
+    for(let i=1; i<=12; i++) mS.add(new Option(i+'月', i, false, i===11));
+    for(let i=1; i<=31; i++) dS.add(new Option(i+'日', i, false, i===24));
+    for(let i=0; i<24; i++) hS.add(new Option(i+'时', i, false, i===14));
+    for(let i=0; i<60; i++) mnS.add(new Option(i+'分', i, false, i===20));
+
+    let currentBaziData = null;
+
+    document.getElementById("baziForm").addEventListener("submit", async function(e) {
+        e.preventDefault();
+        const overlay = document.getElementById('loading-overlay');
+        const resSec = document.getElementById('result-section');
+        const aiBox = document.getElementById('ai-result-box');
+        
+        resSec.style.display = 'none';
+        aiBox.style.display = 'none';
+        document.getElementById('ai-content').innerHTML = '';
+        overlay.style.display = 'flex';
+
+        const gender = document.querySelector('input[name="gender"]:checked').value;
+        const q = `year=${yS.value}&month=${mS.value}&day=${dS.value}&hour=${hS.value}&minute=${mnS.value}&gender=${gender}`;
+
+        try {
+            const res = await fetch(`https://fuxi-f11o.onrender.com/bazi?${q}`);
+            const json = await res.json();
+
+            if(json.code === 200) {
+                currentBaziData = json.data;
+                setTimeout(() => {
+                    renderResult(json.data);
+                    overlay.style.display = 'none';
+                    resSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 800);
+            } else {
+                alert("排盘错误: " + json.msg);
+                overlay.style.display = 'none';
+            }
+        } catch (err) {
+            alert("连接失败");
+            overlay.style.display = 'none';
+        }
+    });
+
+    document.getElementById("ai-btn").addEventListener("click", async function(){
+        if(!currentBaziData) return;
+        
+        const aiBox = document.getElementById('ai-result-box');
+        const aiLoading = document.getElementById('ai-loading');
+        const aiContent = document.getElementById('ai-content');
+
+        aiBox.style.display = 'block';
+        aiLoading.style.display = 'block';
+        aiContent.innerHTML = '';
+        aiBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+        try {
+            const res = await fetch(`https://fuxi-f11o.onrender.com/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentBaziData)
+            });
+            const json = await res.json();
+            
+            aiLoading.style.display = 'none';
+            if(json.code === 200) {
+                let text = json.data;
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                text = text.replace(/\n/g, '<br>');
+                text = text.replace(/#/g, '');
+                aiContent.innerHTML = text;
+            } else {
+                aiContent.innerHTML = `<span style="color:red">大师今日闭关 (错误: ${json.msg})</span>`;
+            }
+        } catch(err) {
+            aiLoading.style.display = 'none';
+            aiContent.innerText = "网络连接错误";
+        }
+    });
+
+    function renderResult(d) {
+        document.getElementById('result-section').style.display = 'block';
+        document.getElementById('basic-info').innerHTML = `${d.basic_info.solar} &nbsp;|&nbsp; ${d.basic_info.lunar} &nbsp;|&nbsp; ${d.basic_info.gender}命`;
+
+        const mapKey = {'y':'year','m':'month','d':'day','t':'time'};
+        
+        const wuxingMap = {
+            '甲':'木','乙':'木',
+            '丙':'火','丁':'火',
+            '戊':'土','己':'土',
+            '庚':'金','辛':'金',
+            '壬':'水','癸':'水'
+        };
+
+        Object.keys(mapKey).forEach(k => {
+            const p = d.pillars[mapKey[k]];
+            if(k!=='d') document.getElementById(`ss-${k}`).innerText = p.shishen;
+            
+            const tg = document.getElementById(`tg-${k}`); 
+            tg.innerText=p.gan.name; 
+            tg.className=`gan-zhi-font wx-${p.gan.wuxing}`;
+            
+            const dz = document.getElementById(`dz-${k}`); 
+            dz.innerText=p.zhi.name; 
+            dz.className=`gan-zhi-font wx-${p.zhi.wuxing}`;
+            
+            document.getElementById(`cg-${k}`).innerHTML = p.hidden.map(h => {
+                const wxColor = wuxingMap[h.gan] || ''; 
+                return `<span style="display:block;font-size:0.9rem;color:#666">
+                    <span class="wx-${wxColor}" style="font-weight:bold">${h.gan}</span>
+                    ${h.shishen}
+                </span>`;
+            }).join('');
+            
+            document.getElementById(`ny-${k}`).innerText = p.nayin;
+            document.getElementById(`sha-${k}`).innerHTML = p.shensha.join('<br>');
+        });
+    }
+</script>
+</body>
+</html>
