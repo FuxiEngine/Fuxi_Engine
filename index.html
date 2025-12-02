@@ -159,11 +159,85 @@
         
         /* AI 内容容器 */
         #ai-content {
-            white-space: pre-wrap; /* 保留后端返回的格式 */
+            white-space: pre-wrap; 
             font-family: "Kaiti", serif;
             color: #3e2b1d;
         }
         
+        /* === 新增：问答区域样式 === */
+        .chat-section {
+            margin-top: 30px;
+            border-top: 2px dashed #bdae9a;
+            padding-top: 25px;
+        }
+
+        .chat-input-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #user-question {
+            flex-grow: 1;
+            background-color: #fcf9f2;
+            border: 1px solid #bdae9a;
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 1.1rem;
+            font-family: "Kaiti", serif;
+            outline: none;
+        }
+
+        #btn-ask {
+            width: 100px;
+            background-color: #5d4037;
+            color: #f7f3e8;
+            border: none;
+            border-radius: 4px;
+            font-family: "Kaiti", serif;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #btn-ask:hover { background-color: #4a342e; }
+        #btn-ask:disabled { background-color: #8b6b5d; cursor: not-allowed; opacity: 0.7; }
+
+        /* 问答历史记录 */
+        .chat-history {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .chat-item {
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+
+        .chat-user {
+            background-color: #eaddc5;
+            align-self: flex-end;
+            max-width: 90%;
+            color: #3e2b1d;
+            border-bottom-right-radius: 0;
+        }
+
+        .chat-ai {
+            background-color: rgba(255, 250, 240, 0.8);
+            border: 1px solid #8b6b5d;
+            align-self: flex-start;
+            max-width: 100%;
+            color: #2b1b17;
+            border-bottom-left-radius: 0;
+        }
+
         /* 光标特效 */
         .cursor {
             display: inline-block;
@@ -235,6 +309,8 @@
             .gan-zhi-font { font-size: 1.4rem; } 
             #ai-result-box { padding: 15px; font-size: 1rem; }
             .bg-rotating { width: 100vmax; height: 100vmax; background-size: 80%; }
+            .chat-section { margin-top: 20px; padding-top: 15px; }
+            #btn-ask { width: 80px; font-size: 1.1rem; }
         }
     </style>
 </head>
@@ -331,6 +407,20 @@
                 </div>
                 <div id="ai-content"></div>
             </div>
+
+            <div class="chat-section">
+                <div style="font-size:1.4rem; font-weight:bold; margin-bottom:15px; color:#5d4037;">
+                    🏮 命理问答
+                </div>
+                
+                <div class="chat-history" id="chat-container">
+                    </div>
+
+                <div class="chat-input-box" style="margin-top:20px;">
+                    <input type="text" id="user-question" placeholder="请教大师（如：我适合创业吗？今年财运如何？）" />
+                    <button id="btn-ask">问 卜</button>
+                </div>
+            </div>
         </div>
 
         <div class="footer-disclaimer">
@@ -368,9 +458,11 @@
         const resSec = document.getElementById('result-section');
         const aiBox = document.getElementById('ai-result-box');
         
+        // 重置界面
         resSec.style.display = 'none';
         aiBox.style.display = 'none';
         document.getElementById('ai-content').innerHTML = '';
+        document.getElementById('chat-container').innerHTML = ''; // 清空聊天记录
         overlay.style.display = 'flex';
 
         const gender = document.querySelector('input[name="gender"]:checked').value;
@@ -479,6 +571,94 @@
             aiLoading.style.display = 'none';
         }
     });
+
+    // ======================================
+    // 🏮 问答功能 (Chat)
+    // ======================================
+    const chatContainer = document.getElementById('chat-container');
+    const qInput = document.getElementById('user-question');
+    const askBtn = document.getElementById('btn-ask');
+
+    askBtn.addEventListener('click', async () => {
+        const question = qInput.value.trim();
+        if (!question) return alert("请先输入您想问的问题");
+        if (!currentBaziData) return alert("请先进行排盘");
+
+        // 1. 界面处理：清空输入框，禁用按钮
+        qInput.value = '';
+        askBtn.disabled = true;
+        askBtn.innerText = "推演中...";
+
+        // 2. 显示用户提问
+        addChatBubble(question, 'user');
+
+        // 3. 创建AI回答的容器（预留位置）
+        const aiBubbleId = 'ai-msg-' + Date.now();
+        addChatBubble('<span class="cursor"></span>', 'ai', aiBubbleId);
+        const aiContentSpan = document.getElementById(aiBubbleId);
+
+        try {
+            // 4. 发送请求
+            const res = await fetch(`${API_BASE_URL}/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: question,
+                    bazi_data: currentBaziData // 把当前的八字传回去，保持上下文
+                })
+            });
+
+            if (!res.ok) throw new Error("API Error");
+
+            // 5. 流式读取
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let fullText = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                const chunk = decoder.decode(value, { stream: true });
+                fullText += chunk;
+                
+                // 简单的 Markdown 清洗
+                let cleaned = fullText
+                    .replace(/\*\*/g, "")
+                    .replace(/###/g, "")
+                    .replace(/^-\s/gm, "• ");
+
+                // 更新文字 + 保持光标在末尾
+                aiContentSpan.innerHTML = cleaned + '<span class="cursor"></span>';
+                
+                // 自动滚动到底部
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+
+            // 移除光标
+            const cursor = aiContentSpan.querySelector('.cursor');
+            if(cursor) cursor.remove();
+
+        } catch (err) {
+            console.error(err);
+            aiContentSpan.innerHTML += `<br><span style="color:red">（连接断开，请重试）</span>`;
+        } finally {
+            askBtn.disabled = false;
+            askBtn.innerText = "问 卜";
+        }
+    });
+
+    // 辅助函数：添加气泡
+    function addChatBubble(htmlContent, type, id=null) {
+        const div = document.createElement('div');
+        div.className = `chat-item chat-${type}`;
+        if(id) div.innerHTML = `<span id="${id}">${htmlContent}</span>`;
+        else div.innerHTML = htmlContent;
+        
+        chatContainer.appendChild(div);
+        // 确保新消息可见
+        div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
     function renderResult(d) {
         document.getElementById('basic-info').innerHTML = `${d.basic_info.solar} <br> ${d.basic_info.lunar} | ${d.basic_info.gender}命`;
