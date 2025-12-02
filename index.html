@@ -252,7 +252,7 @@
                 <div class="radio-group">
                     <label class="radio-item">
                         <input type="radio" name="calendar" checked>
-                        <span class="radio-mark"></span> 公历排盘
+                        </span> 公历排盘
                     </label>
                 </div>
             </div>
@@ -277,11 +277,11 @@
                 <div class="radio-group">
                     <label class="radio-item">
                         <input type="radio" name="gender" value="male" checked>
-                        <span class="radio-mark"></span> 男
+                        </span> 男
                     </label>
                     <label class="radio-item">
                         <input type="radio" name="gender" value="female">
-                        <span class="radio-mark"></span> 女
+                        </span> 女
                     </label>
                 </div>
             </div>
@@ -333,8 +333,10 @@
     </div>
 
 <script>
-    // ⚠️ 请根据实际部署地址修改
-    const API_BASE_URL = "http://localhost:5001"; 
+    // ============================================
+    // ⚠️ 部署时使用下方链接。如果本地调试请改为 http://localhost:5001
+    // ============================================
+    const API_BASE_URL = "https://fuxi-f11o.onrender.com"; 
 
     const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel');
     const dS=document.getElementById('daySel'), hS=document.getElementById('hourSel'), mnS=document.getElementById('minSel');
@@ -379,13 +381,14 @@
                 overlay.style.display = 'none';
             }
         } catch (err) {
-            alert("连接失败，请检查网络或后端是否启动");
+            console.error(err);
+            alert("连接失败，请检查网络或确认后端已启动。\n当前连接地址: " + API_BASE_URL);
             overlay.style.display = 'none';
         }
     });
 
     // ======================================
-    // 🔮 核心：流式读取 + 光标特效
+    // 🔮 AI 流式读取 + Markdown 清洗 + 光标
     // ======================================
     document.getElementById("ai-btn").addEventListener("click", async function(){
         if(!currentBaziData) return;
@@ -421,6 +424,7 @@
             const reader = res.body.getReader();
             const decoder = new TextDecoder("utf-8");
             let isFirstChunk = true;
+            let fullText = ""; // 累积文本缓冲区
 
             // 3. 循环读取流
             while (true) {
@@ -433,12 +437,21 @@
                     isFirstChunk = false;
                 }
 
-                // 解码并追加到 textSpan 中，光标会自动被挤到后面
+                // 解码并追加到缓冲区
                 const chunk = decoder.decode(value, { stream: true });
-                textSpan.innerText += chunk; // 使用innerText防止HTML注入，保留换行
-                
-                // 可选：自动跟随滚动
-                // aiBox.scrollTop = aiBox.scrollHeight; 
+                fullText += chunk;
+
+                // === 实时清洗 Markdown 符号 ===
+                let cleanedText = fullText
+                    .replace(/\*\*/g, "")          // 去掉粗体 **
+                    .replace(/###\s?/g, "")        // 去掉标题 ### 
+                    .replace(/####\s?/g, "")       // 去掉小标题 ####
+                    .replace(/^-\s/gm, "• ")       // 把 - 列表变成 •
+                    .replace(/`/g, "")             // 去掉代码符号
+                    .replace(/>\s/g, "");          // 去掉引用符号
+
+                // 更新界面
+                textSpan.innerText = cleanedText; 
             }
             
             // 4. 结束后移除光标
