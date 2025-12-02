@@ -144,6 +144,12 @@
             width: 100%; font-size: 1.4rem; margin-top: 20px; padding: 10px;
             border: 2px dashed #8b6b5d; background: transparent; color: #5d4037;
             cursor: pointer; font-family: "Kaiti"; border-radius: 8px;
+            transition: opacity 0.3s;
+        }
+        #ai-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background-color: rgba(0,0,0,0.05);
         }
         
         #ai-result-box {
@@ -151,6 +157,11 @@
             background: rgba(255, 250, 240, 0.8);
             border: 1px solid #8b6b5d; border-radius: 8px;
             font-size: 1.1rem; line-height: 1.6; text-align: left;
+        }
+        
+        /* 关键：保留 AI 输出的换行符和空格 */
+        #ai-content {
+            white-space: pre-wrap; 
         }
 
         /* Loading */
@@ -185,36 +196,19 @@
             h1 { font-size: 2.5rem; margin: 15px 0; }
             
             .paper-card { padding: 25px 15px; }
-
-            /* 表单改为上下结构 */
             .form-row { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 20px; }
             .label { width: 100%; text-align: left; margin-bottom: 5px; font-size: 1.2rem; }
-            
-            /* 输入框和选择框全宽，易点击 */
             input[type="text"] { height: 45px; font-size: 1.1rem; }
             select { height: 45px; font-size: 1rem; }
-
-            /* 日期行：填满宽度，自动分配空间 */
             .select-col { width: 100%; }
             .select-row { width: 100%; justify-content: space-between; gap: 8px; }
-            
-            /* 去掉固定宽度，让 Flex 自动分配 */
             .sel-year, .sel-md, .sel-time { width: auto; flex: 1; }
-
             .radio-group { font-size: 1.1rem; gap: 20px; }
-
-            /* 按钮全宽 */
             button[type="submit"] { width: 100%; height: 55px; font-size: 1.8rem; }
-            
-            /* 表格适配：缩小字体和边距，防止撑破 */
             .bazi-table { font-size: 0.9rem; margin-top: 10px; }
             .bazi-table th, .bazi-table td { padding: 5px 2px; }
-            .gan-zhi-font { font-size: 1.4rem; } /* 缩小天干地支大字 */
-
-            /* AI 结果字号微调 */
+            .gan-zhi-font { font-size: 1.4rem; } 
             #ai-result-box { padding: 15px; font-size: 1rem; }
-            
-            /* 背景适配 */
             .bg-rotating { width: 100vmax; height: 100vmax; background-size: 80%; }
         }
     </style>
@@ -306,7 +300,7 @@
 
             <button id="ai-btn">🔮 启动AI引擎</button>
             <div id="ai-result-box">
-                <div style="text-align:center; color:#8b1e1e;" id="ai-loading">AI 正在以此为契机连接天机...</div>
+                <div style="text-align:center; color:#8b1e1e; display:none" id="ai-loading">AI 正在以此为契机连接天机...</div>
                 <div id="ai-content"></div>
             </div>
         </div>
@@ -318,14 +312,12 @@
     </div>
 
 <script>
-    // 注意：这里使用的是 Render 的地址，请确认地址无误
     const API_BASE_URL = "https://fuxi-f11o.onrender.com"; 
 
     const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel');
     const dS=document.getElementById('daySel'), hS=document.getElementById('hourSel'), mnS=document.getElementById('minSel');
     const now = new Date();
     
-    // 初始化日期选择器
     for(let i=now.getFullYear()+1; i>1930; i--) yS.add(new Option(i+'年', i, false, i===2025));
     for(let i=1; i<=12; i++) mS.add(new Option(i+'月', i, false, i===11));
     for(let i=1; i<=31; i++) dS.add(new Option(i+'日', i, false, i===24));
@@ -349,7 +341,6 @@
         const q = `year=${yS.value}&month=${mS.value}&day=${dS.value}&hour=${hS.value}&minute=${mnS.value}&gender=${gender}`;
 
         try {
-            // 使用 Render 后端地址
             const res = await fetch(`${API_BASE_URL}/bazi?${q}`);
             const json = await res.json();
 
@@ -371,40 +362,64 @@
         }
     });
 
+    // ======================================
+    // ⚠️ 关键修改：流式读取 AI 响应
+    // ======================================
     document.getElementById("ai-btn").addEventListener("click", async function(){
         if(!currentBaziData) return;
         
+        const aiBtn = document.getElementById('ai-btn');
         const aiBox = document.getElementById('ai-result-box');
         const aiLoading = document.getElementById('ai-loading');
         const aiContent = document.getElementById('ai-content');
 
+        aiBtn.disabled = true;
+        aiBtn.innerText = "🔮 天机推演中...";
+
         aiBox.style.display = 'block';
-        aiLoading.style.display = 'block';
         aiContent.innerHTML = '';
+        aiLoading.style.display = 'block'; // 显示加载提示，直到第一个字出来
         aiBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         try {
-            // 使用 Render 后端地址
             const res = await fetch(`${API_BASE_URL}/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentBaziData)
             });
-            const json = await res.json();
-            
-            aiLoading.style.display = 'none';
-            if(json.code === 200) {
-                let text = json.data;
-                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                text = text.replace(/\n/g, '<br>');
-                text = text.replace(/#/g, '');
-                aiContent.innerHTML = text;
-            } else {
-                aiContent.innerHTML = `<span style="color:red">大师今日闭关 (错误: ${json.msg})</span>`;
+
+            if (!res.ok) throw new Error("API Error");
+
+            // 创建流式读取器
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let isFirstChunk = true;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                // 收到第一个字时，隐藏 Loading 提示
+                if(isFirstChunk) {
+                    aiLoading.style.display = 'none';
+                    isFirstChunk = false;
+                }
+
+                // 解码并追加内容
+                const text = decoder.decode(value, { stream: true });
+                aiContent.innerHTML += text; 
+                
+                // 自动滚动到底部
+                // aiBox.scrollTop = aiBox.scrollHeight; 
             }
+
         } catch(err) {
+            console.error(err);
+            aiContent.innerHTML += `\n<span style="color:red">（天机连接中断，请稍后再试）</span>`;
+        } finally {
+            aiBtn.disabled = false;
+            aiBtn.innerText = "🔮 启动AI引擎";
             aiLoading.style.display = 'none';
-            aiContent.innerText = "网络连接错误";
         }
     });
 
@@ -412,11 +427,7 @@
         document.getElementById('basic-info').innerHTML = `${d.basic_info.solar} <br> ${d.basic_info.lunar} | ${d.basic_info.gender}命`;
 
         const mapKey = {'y':'year','m':'month','d':'day','t':'time'};
-        
-        const wuxingMap = {
-            '甲':'木','乙':'木', '丙':'火','丁':'火', '戊':'土','己':'土',
-            '庚':'金','辛':'金', '壬':'水','癸':'水'
-        };
+        const wuxingMap = {'甲':'木','乙':'木', '丙':'火','丁':'火', '戊':'土','己':'土','庚':'金','辛':'金', '壬':'水','癸':'水'};
 
         Object.keys(mapKey).forEach(k => {
             const p = d.pillars[mapKey[k]];
@@ -442,10 +453,6 @@
             document.getElementById(`sha-${k}`).innerHTML = p.shensha.join('<br>');
         });
     }
-    
 </script>
-    <footer style="text-align: center; color: #999; font-size: 12px; padding: 20px;">
-  本服务基于人工智能算法，结果仅供娱乐与心理疏导，不构成任何投资、医疗或人生决策建议。
-</footer>
 </body>
 </html>
