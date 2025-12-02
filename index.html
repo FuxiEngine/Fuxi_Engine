@@ -19,7 +19,6 @@
             --taiji-light: #f7f3e8;
         }
 
-        /* 关键：防止 padding 撑大宽度 */
         * { box-sizing: border-box; }
 
         body {
@@ -102,7 +101,6 @@
         }
         input[type="radio"]:checked + .radio-mark::after { content: ""; width: 12px; height: 12px; background-color: var(--accent-red); border-radius: 50%; }
         input[type="radio"]:checked + .radio-mark { border-color: var(--accent-red); }
-        .hint-red { color: #8b1e1e; font-weight: bold; font-size: 0.95rem; margin-left: 15px; font-family: "Kaiti"; }
 
         /* 下拉选择区域 */
         .select-col { display: flex; flex-direction: column; gap: 12px; width: 100%; }
@@ -159,9 +157,31 @@
             font-size: 1.1rem; line-height: 1.6; text-align: left;
         }
         
-        /* 关键：保留 AI 输出的换行符和空格 */
+        /* AI 内容容器 */
         #ai-content {
-            white-space: pre-wrap; 
+            white-space: pre-wrap; /* 保留后端返回的格式 */
+            font-family: "Kaiti", serif;
+            color: #3e2b1d;
+        }
+        
+        /* =============
+           打字机光标特效 
+           =============
+        */
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 1.2rem;
+            background-color: #5d4037;
+            margin-left: 5px;
+            vertical-align: text-bottom;
+            animation: blink 0.8s step-end infinite;
+            opacity: 1;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
         }
 
         /* Loading */
@@ -188,9 +208,7 @@
             background-image: radial-gradient(circle, var(--taiji-light) 25%, transparent 25%);
         }
 
-        /* ========================
-           📱 移动端适配核心代码
-           ======================== */
+        /* 移动端适配 */
         @media (max-width: 600px) {
             .container { padding: 15px; }
             h1 { font-size: 2.5rem; margin: 15px 0; }
@@ -299,8 +317,11 @@
             </table>
 
             <button id="ai-btn">🔮 启动AI引擎</button>
+            
             <div id="ai-result-box">
-                <div style="text-align:center; color:#8b1e1e; display:none" id="ai-loading">AI 正在以此为契机连接天机...</div>
+                <div style="text-align:center; color:#8b1e1e; display:none; margin-bottom:10px;" id="ai-loading">
+                    AI 正在连接天机...
+                </div>
                 <div id="ai-content"></div>
             </div>
         </div>
@@ -312,7 +333,8 @@
     </div>
 
 <script>
-    const API_BASE_URL = "https://fuxi-f11o.onrender.com"; 
+    // ⚠️ 请根据实际部署地址修改
+    const API_BASE_URL = "http://localhost:5001"; 
 
     const yS=document.getElementById('yearSel'), mS=document.getElementById('monthSel');
     const dS=document.getElementById('daySel'), hS=document.getElementById('hourSel'), mnS=document.getElementById('minSel');
@@ -363,7 +385,7 @@
     });
 
     // ======================================
-    // ⚠️ 关键修改：流式读取 AI 响应
+    // 🔮 核心：流式读取 + 光标特效
     // ======================================
     document.getElementById("ai-btn").addEventListener("click", async function(){
         if(!currentBaziData) return;
@@ -376,9 +398,14 @@
         aiBtn.disabled = true;
         aiBtn.innerText = "🔮 天机推演中...";
 
+        // 显示容器
         aiBox.style.display = 'block';
-        aiContent.innerHTML = '';
-        aiLoading.style.display = 'block'; // 显示加载提示，直到第一个字出来
+        aiLoading.style.display = 'block'; 
+        
+        // 1. 初始化结构：[文本SPAN] + [光标SPAN]
+        aiContent.innerHTML = '<span id="ai-text-span"></span><span class="cursor"></span>';
+        const textSpan = document.getElementById('ai-text-span');
+        
         aiBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         try {
@@ -390,35 +417,40 @@
 
             if (!res.ok) throw new Error("API Error");
 
-            // 创建流式读取器
+            // 2. 获取读取器
             const reader = res.body.getReader();
             const decoder = new TextDecoder("utf-8");
             let isFirstChunk = true;
 
+            // 3. 循环读取流
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 
-                // 收到第一个字时，隐藏 Loading 提示
+                // 收到第一个字时，隐藏 Loading 文字
                 if(isFirstChunk) {
                     aiLoading.style.display = 'none';
                     isFirstChunk = false;
                 }
 
-                // 解码并追加内容
-                const text = decoder.decode(value, { stream: true });
-                aiContent.innerHTML += text; 
+                // 解码并追加到 textSpan 中，光标会自动被挤到后面
+                const chunk = decoder.decode(value, { stream: true });
+                textSpan.innerText += chunk; // 使用innerText防止HTML注入，保留换行
                 
-                // 自动滚动到底部
+                // 可选：自动跟随滚动
                 // aiBox.scrollTop = aiBox.scrollHeight; 
             }
+            
+            // 4. 结束后移除光标
+            const cursor = aiContent.querySelector('.cursor');
+            if(cursor) cursor.remove();
 
         } catch(err) {
             console.error(err);
-            aiContent.innerHTML += `\n<span style="color:red">（天机连接中断，请稍后再试）</span>`;
+            aiContent.innerHTML += `\n<span style="color:red; font-weight:bold;">（天机连接中断：${err.message}）</span>`;
         } finally {
             aiBtn.disabled = false;
-            aiBtn.innerText = "🔮 启动AI引擎";
+            aiBtn.innerText = "🔮 重新推演";
             aiLoading.style.display = 'none';
         }
     });
